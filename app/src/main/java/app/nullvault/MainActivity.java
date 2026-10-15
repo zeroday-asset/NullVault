@@ -1,0 +1,39 @@
+package app.nullvault;
+
+import android.app.*;
+import android.os.*;
+import android.view.*;
+import android.widget.*;
+import android.text.InputType;
+import org.json.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.ByteBuffer;
+import java.nio.file.*;
+import java.security.*;
+import java.util.*;
+import javax.crypto.*;
+import javax.crypto.spec.*;
+
+public class MainActivity extends Activity {
+ private JSONArray entries;
+ private byte[] key, salt;
+ private LinearLayout body;
+ private final Handler timer = new Handler(Looper.getMainLooper());
+ private final Runnable refresh = new Runnable() { public void run() { if(entries!=null) { showVault(); timer.postDelayed(this,1000); } } };
+ private java.io.File vault;
+ private EditText field(String hint, boolean secret) { EditText e=new EditText(this); e.setHint(hint); e.setTextColor(0xffeeeeee); e.setHintTextColor(0xffaaaaaa); if(secret) e.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD); body.addView(e); return e; }
+ private void page(String title) { body=new LinearLayout(this); body.setOrientation(1); body.setPadding(28,24,28,24); body.setBackgroundColor(0xff121820); ScrollView scroll=new ScrollView(this); scroll.addView(body); setContentView(scroll); text(title,24); }
+ private void text(String value,int size) { TextView t=new TextView(this); t.setText(value); t.setTextSize(size); t.setTextColor(0xffeeeeee); t.setPadding(0,12,0,12); body.addView(t); }
+ private void button(String label, Runnable action) { Button b=new Button(this); b.setText(label); body.addView(b); b.setOnClickListener(v->action.run()); }
+ private void error(String message) { new AlertDialog.Builder(this).setMessage(message).setPositiveButton("OK",null).show(); }
+ public void onCreate(Bundle state) { super.onCreate(state); getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE,WindowManager.LayoutParams.FLAG_SECURE); vault=new java.io.File(getFilesDir(),"vault.json"); unlock(); }
+ private void unlock() { page("NullVault · Alpha"); text("Experimental build. Use test data only. Offline storage; no sync or imports yet.",16); boolean exists=vault.exists(); text(exists?"Unlock your vault":"Create your vault",20); EditText p=field("Master password",true); EditText confirm=exists?null:field("Confirm master password",true); button(exists?"Unlock":"Create vault",()->{ char[] password=p.getText().toString().toCharArray(); try { if(!exists && (password.length<12 || !p.getText().toString().equals(confirm.getText().toString()))) throw new Exception("Use at least 12 characters and matching passwords."); if(exists) { JSONObject envelope=new JSONObject(new String(Files.readAllBytes(vault.toPath()),StandardCharsets.UTF_8)); if(envelope.getInt("version")!=1 || envelope.getInt("iterations")!=600000) throw new Exception("Unsupported vault format"); salt=Base64.getDecoder().decode(envelope.getString("salt")); key=derive(password,salt); Cipher c=Cipher.getInstance("AES/GCM/NoPadding"); c.init(Cipher.DECRYPT_MODE,new SecretKeySpec(key,"AES"),new GCMParameterSpec(128,Base64.getDecoder().decode(envelope.getString("iv")))); c.updateAAD("NullVault:1".getBytes(StandardCharsets.UTF_8)); entries=new JSONArray(new String(c.doFinal(Base64.getDecoder().decode(envelope.getString("data"))),StandardCharsets.UTF_8)); } else { salt=new byte[16]; new SecureRandom().nextBytes(salt); key=derive(password,salt); entries=new JSONArray(); save(); } p.setText(""); if(confirm!=null) confirm.setText(""); timer.removeCallbacks(refresh); refresh.run(); } catch(Exception ex) { lockKey(); error(exists?"Unable to unlock. Check your password. A damaged or unsupported file can also cause this error.":ex.getMessage()); } finally { Arrays.fill(password,'\0'); } }); }
+ private byte[] derive(char[] password,byte[] salt) throws Exception { PBEKeySpec spec=new PBEKeySpec(password,salt,600000,256); try {return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).getEncoded();}finally{spec.clearPassword();} }
+ private void save() throws Exception { byte[] iv=new byte[12]; new SecureRandom().nextBytes(iv); Cipher c=Cipher.getInstance("AES/GCM/NoPadding"); c.init(Cipher.ENCRYPT_MODE,new SecretKeySpec(key,"AES"),new GCMParameterSpec(128,iv)); c.updateAAD("NullVault:1".getBytes(StandardCharsets.UTF_8)); JSONObject envelope=new JSONObject(); envelope.put("version",1); envelope.put("iterations",600000); envelope.put("salt",Base64.getEncoder().encodeToString(salt)); envelope.put("iv",Base64.getEncoder().encodeToString(iv)); envelope.put("data",Base64.getEncoder().encodeToString(c.doFinal(entries.toString().getBytes(StandardCharsets.UTF_8)))); java.io.File tmp=new java.io.File(getFilesDir(),"vault.tmp"); try(java.io.FileOutputStream out=new java.io.FileOutputStream(tmp)){out.write(envelope.toString().getBytes(StandardCharsets.UTF_8));out.getFD().sync();} Files.move(tmp.toPath(),vault.toPath(),StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING); }
+ private void showVault() { page("NullVault"); button("Add password or authenticator",()->{timer.removeCallbacks(refresh);add();}); button("Lock",()->{lockKey();unlock();}); text("Test vault · "+entries.length()+" entries",16); for(int i=0;i<entries.length();i++){ final JSONObject entry=entries.optJSONObject(i); text(entry.optString("title"),20); text(entry.optString("username"),14); if(!entry.optString("totp").isEmpty()) try{text(code(entry.getString("totp"),System.currentTimeMillis()/1000)+"  ·  "+(30-System.currentTimeMillis()/1000%30)+"s",24);}catch(Exception e){text("Invalid authenticator secret",16);} if(!entry.optString("password").isEmpty()) button("Reveal password",()->new AlertDialog.Builder(this).setTitle(entry.optString("title")).setMessage(entry.optString("password")).setPositiveButton("Close",null).show()); } }
+ private void add() { page("New entry"); EditText title=field("Name / issuer",false), user=field("Username / account",false), pass=field("Password (optional)",true), otp=field("TOTP Base32 secret (optional)",true); text("Authenticator defaults: SHA-1, 6 digits, 30 seconds.",14); button("Save",()->{try{if(title.getText().toString().trim().isEmpty())throw new Exception("A name is required."); String secret=otp.getText().toString().replaceAll("[\\s=-]","").toUpperCase(Locale.ROOT); if(!secret.isEmpty())code(secret,0); JSONObject e=new JSONObject();e.put("title",title.getText().toString().trim());e.put("username",user.getText().toString());e.put("password",pass.getText().toString());e.put("totp",secret);entries.put(e);try{save();}catch(Exception failure){entries.remove(entries.length()-1);throw failure;}refresh.run();}catch(Exception ex){error("Could not save: "+ex.getMessage());}}); button("Cancel",()->refresh.run()); }
+ static String code(String secret,long seconds) throws Exception {java.io.ByteArrayOutputStream out=new java.io.ByteArrayOutputStream();int buffer=0,bits=0;for(char ch:secret.toCharArray()){int v="ABCDEFGHIJKLMNOPQRSTUVWXYZ234567".indexOf(ch);if(v<0)throw new Exception("Invalid Base32 secret");buffer=(buffer<<5)|v;bits+=5;if(bits>=8){bits-=8;out.write((buffer>>bits)&255);}}byte[] bytes=out.toByteArray();if(bytes.length<10)throw new Exception("Secret is too short");Mac mac=Mac.getInstance("HmacSHA1");mac.init(new SecretKeySpec(bytes,"HmacSHA1"));byte[] hash=mac.doFinal(ByteBuffer.allocate(8).putLong(seconds/30).array());int offset=hash[hash.length-1]&15;int value=((hash[offset]&127)<<24)|((hash[offset+1]&255)<<16)|((hash[offset+2]&255)<<8)|(hash[offset+3]&255);Arrays.fill(bytes,(byte)0);return String.format(Locale.ROOT,"%06d",value%1000000);}
+ private void lockKey(){timer.removeCallbacks(refresh);if(key!=null)Arrays.fill(key,(byte)0);key=null;entries=null;}
+ protected void onStop(){super.onStop();lockKey();unlock();}
+ protected void onDestroy(){timer.removeCallbacks(refresh);super.onDestroy();}
+}
