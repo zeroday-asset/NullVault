@@ -4,18 +4,22 @@ permissions:
   contents: read
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - run: gradle :app:assembleDebug --no-daemon
+      - uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: nullvault-preview-debug-signing-v1
+      - run: gradle :app:testDebugUnitTest :app:assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
-          name: NullVault-alpha-debug
+          name: NullVault-0.2.0-preview
           path: app/build/outputs/apk/debug/app-debug.apk
