@@ -1,18 +1,30 @@
 # NullVault
 
-An Android password vault and authenticator with planned offline access and user-controlled encrypted synchronization.
+Offline Android vault and authenticator. **Experimental preview: test data only. No security audit has been completed.**
 
-## Planned features
+## Preview 0.2
 
-- Encrypted local passwords, authenticator secrets, and attachments.
-- Imports from Aegis, Bitwarden, standard otpauth QR codes, and other documented authenticator export formats.
-- Encrypted Nextcloud synchronization over WebDAV, with conflict recovery.
-- Complete encrypted backups and exports.
-- Android autofill, passkey provider support, and FIDO2 security key integration where supported.
-- Optional encrypted sharing service deployable alongside Nextcloud.
+- Searchable vault list with separate entry details, add/edit forms, and settings, using a Bitwarden-inspired arrangement and original NullVault branding.
+- Passwords and authenticator codes hidden by default. Reveal and copy within an entry. Clipboard clearing after 30 seconds (when the app process is alive).
+- Master-password derivation and vault writes run off the UI thread. Backgrounding locks the vault and clears its active encryption key.
+- AES-256-GCM authenticated encryption, random salt/nonce, PBKDF2-HMAC-SHA256 at 600,000 iterations. This implementation requires further independent review.
+- Import unencrypted Aegis JSON (TOTP), unencrypted Bitwarden password-manager JSON (logins and notes), otpauth TOTP text, and encrypted NullVault backups.
+- Import preview and exact-match duplicate detection; existing entries retained. Unsupported item types reject the entire import rather than silently losing entries. Original Bitwarden item metadata retained in encrypted backups; passkeys in that metadata are not usable credentials in this app.
+- Export an encrypted portable NullVault backup through Android's file picker. Restore using the exporting vault's master password. Backup files contain no account-specific platform key.
+- SHA-1/SHA-256/SHA-512 TOTP, 6–8 digits and configurable periods from imported data.
 
-## Development status
+## Installation and signing
 
-Initial development. No APK has been built. Planned features are not implemented or security-reviewed yet; do not store real credentials in this project.
+This build uses application ID `app.nullvault.preview` and installs alongside the original `app.nullvault` alpha. The original APK used an ephemeral debug signing key that is not available to sign updates. Its data is left untouched. Preview debug signing is cached in Actions on a best-effort basis; cache eviction can still change the signing key. A durable private release signing configuration is required before real use. Do not uninstall a vault containing data you need.
 
-Open-source components will be evaluated for suitability and license compatibility before reuse.
+## Not yet implemented
+
+Encrypted Aegis/Bitwarden import, Google transfer QR, camera/image QR scanning, Nextcloud synchronization, attachments, Android autofill, active passkeys/FIDO support, sharing service, edit/delete history and security audit.
+
+Aegis/Bitwarden plaintext exports contain secrets: handle them locally and remove unneeded copies after a verified import. Do not upload your real exports into GitHub or chat.
+
+## Build and validation
+
+GitHub Actions runs `gradle :app:testDebugUnitTest :app:assembleDebug` using Gradle 8.9 and JDK 17, and uploads the debug APK. Engine tests cover RFC 6238 vectors, authenticated-encryption round trips, incorrect keys, tampering, format imports, duplicate handling, and preserving the existing vault.
+
+A successful build is not evidence of device behavior or a security audit.
