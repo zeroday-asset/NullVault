@@ -16,8 +16,14 @@ jobs:
           gradle-version: '8.9'
       - uses: actions/cache@v4
         with:
-          path: ~/.android/debug.keystore
-          key: nullvault-preview-debug-signing-v1
+          path: .signing/preview.keystore
+          key: nullvault-preview3-debug-signing-v1
+      - name: Prepare preview signing key
+        run: |
+          mkdir -p .signing
+          if [ ! -f .signing/preview.keystore ]; then
+            keytool -genkeypair -keystore .signing/preview.keystore -storepass android -keypass android -alias androiddebugkey -dname "CN=NullVault Preview" -keyalg RSA -keysize 2048 -validity 10000
+          fi
       - run: gradle :app:testDebugUnitTest :app:assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
