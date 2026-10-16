@@ -3,6 +3,7 @@ package app.nullvault;
 import android.app.*;
 import android.os.*;
 import android.content.*;
+import android.content.ClipboardManager;
 import android.net.Uri;
 import android.view.*;
 import android.view.inputmethod.InputMethodManager;
