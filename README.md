@@ -15,7 +15,7 @@ Offline Android vault and authenticator. **Experimental preview: test data only.
 
 ## Installation and signing
 
-This build uses application ID `app.nullvault.preview` and installs alongside the original `app.nullvault` alpha. The original APK used an ephemeral debug signing key that is not available to sign updates. Its data is left untouched. Preview debug signing is cached in Actions on a best-effort basis; cache eviction can still change the signing key. A durable private release signing configuration is required before real use. Do not uninstall a vault containing data you need.
+This build uses application ID `app.nullvault.preview3` and installs alongside the older alpha and 0.2 preview. Transfer entries with an encrypted export from the old preview and import into this build. The original APK used an ephemeral debug signing key that is not available to sign updates. Its data is left untouched. Preview debug signing is cached in Actions on a best-effort basis; cache eviction can still change the signing key. A durable private release signing configuration is required before real use. Do not uninstall a vault containing data you need.
 
 ## Not yet implemented
 
