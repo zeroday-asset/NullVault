@@ -43,6 +43,7 @@ public final class VaultEngine {
   URI uri=new URI(value.trim());if(!"otpauth".equalsIgnoreCase(uri.getScheme())||!"totp".equalsIgnoreCase(uri.getHost()))throw new Exception("Only otpauth://totp links are supported in this build");
   Map<String,String> query=new HashMap<>();for(String pair:Objects.toString(uri.getRawQuery(),"").split("&")){String[] parts=pair.split("=",2);if(parts.length==2)query.put(URLDecoder.decode(parts[0],"UTF-8"),URLDecoder.decode(parts[1],"UTF-8"));}
   String label=URLDecoder.decode(Objects.toString(uri.getRawPath(),"").replaceFirst("^/",""),"UTF-8"),issuer=query.getOrDefault("issuer",label.contains(":")?label.substring(0,label.indexOf(':')):""),account=label.contains(":")?label.substring(label.indexOf(':')+1):label;
+  if(query.getOrDefault("secret", "").isEmpty())throw new Exception("The otpauth link needs a secret");
   JSONObject e=new JSONObject();e.put("title",issuer.isEmpty()?account:issuer);e.put("username",account);e.put("totp",clean(query.getOrDefault("secret","")));e.put("algorithm",algorithm(query.getOrDefault("algorithm","SHA1")));e.put("digits",Integer.parseInt(query.getOrDefault("digits","6")));e.put("period",Integer.parseInt(query.getOrDefault("period","30")));validate(e);return e;
  }
  public static JSONArray parseImport(String source)throws Exception{
