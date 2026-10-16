@@ -2,14 +2,14 @@
 
 Offline Android vault and authenticator. **Experimental preview: test data only. No security audit has been completed.**
 
-## Preview 0.2
+## Preview 0.2.1
 
 - Searchable vault list with separate entry details, add/edit forms, and settings, using a Bitwarden-inspired arrangement and original NullVault branding.
 - Passwords and authenticator codes hidden by default. Reveal and copy within an entry. Clipboard clearing after 30 seconds (when the app process is alive).
-- Master-password derivation and vault writes run off the UI thread. Backgrounding locks the vault and clears its active encryption key.
+- Master-password derivation and vault writes run off the UI thread. Configurable background timeout (5 minutes by default), immediate screen-off/manual locking. Brief file-picker and app switches retain the session.
 - AES-256-GCM authenticated encryption, random salt/nonce, PBKDF2-HMAC-SHA256 at 600,000 iterations. This implementation requires further independent review.
 - Import unencrypted Aegis JSON (TOTP), unencrypted Bitwarden password-manager JSON (logins and notes), otpauth TOTP text, and encrypted NullVault backups.
-- Import preview and exact-match duplicate detection; existing entries retained. Unsupported item types reject the entire import rather than silently losing entries. Original Bitwarden item metadata retained in encrypted backups; passkeys in that metadata are not usable credentials in this app.
+- Import preview and exact-match duplicate detection; existing entries retained. Unsupported Bitwarden OTP fields and item types are preserved with an import notice; passwords and notes can still import. Original Bitwarden item metadata retained in encrypted backups; passkeys in that metadata are not usable credentials in this app.
 - Export an encrypted portable NullVault backup through Android's file picker. Restore using the exporting vault's master password. Backup files contain no account-specific platform key.
 - SHA-1/SHA-256/SHA-512 TOTP, 6–8 digits and configurable periods from imported data.
 
