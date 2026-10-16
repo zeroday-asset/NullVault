@@ -57,11 +57,35 @@ public final class VaultEngine {
    JSONArray a=db.getJSONArray("entries");for(int i=0;i<a.length();i++){JSONObject item=a.getJSONObject(i);if(item.has("info")){if(!"totp".equalsIgnoreCase(item.optString("type")))throw new Exception("This file contains an unsupported OTP type; nothing was imported.");JSONObject info=item.getJSONObject("info"),e=new JSONObject();e.put("title",item.optString("issuer").isEmpty()?item.optString("name"):item.optString("issuer"));e.put("username",item.optString("name"));e.put("totp",clean(info.getString("secret")));e.put("algorithm",algorithm(info.optString("algo","SHA1")));e.put("digits",info.optInt("digits",6));e.put("period",info.optInt("period",30));validate(e);out.put(e);}else{validate(item);out.put(item);}}return out;
   }
   if(root.has("items")){
-   JSONArray items=root.getJSONArray("items");for(int i=0;i<items.length();i++){JSONObject item=items.getJSONObject(i);if(!item.isNull("deletedDate")&&item.has("deletedDate"))continue;JSONObject e=new JSONObject();e.put("title",item.getString("name"));e.put("notes",item.optString("notes", ""));e.put("sourceBitwarden",item);JSONObject login=item.optJSONObject("login");if(login!=null){e.put("username",login.optString("username",""));e.put("password",login.optString("password",""));String otp=login.optString("totp","");if(!otp.isEmpty()){JSONObject auth=otp.startsWith("otpauth://")?fromUri(otp):new JSONObject().put("totp",clean(otp));for(String k:Arrays.asList("totp","algorithm","digits","period"))if(auth.has(k))e.put(k,auth.get(k));}JSONArray uris=login.optJSONArray("uris");if(uris!=null&&uris.length()>0)e.put("url",uris.getJSONObject(0).optString("uri",""));}else if(item.optInt("type")!=2)throw new Exception("This file contains cards, identities, or another unsupported item type; nothing was imported.");validate(e);out.put(e);}return out;
+   JSONArray items=root.getJSONArray("items");
+   for(int i=0;i<items.length();i++){
+    JSONObject item=items.getJSONObject(i),e=new JSONObject();
+    e.put("title",item.optString("name", "Imported item").trim().isEmpty()?"Imported item":item.optString("name"));
+    e.put("notes",item.optString("notes", ""));e.put("sourceBitwarden",item);
+    JSONObject login=item.optJSONObject("login");
+    if(login!=null){
+     e.put("username",login.optString("username", ""));e.put("password",login.optString("password", ""));
+     String otp=login.optString("totp", "").trim();
+     if(!otp.isEmpty()){
+      try{
+       JSONObject auth=otp.regionMatches(true,0,"otpauth://",0,10)?fromUri(otp):new JSONObject().put("title",e.getString("title")).put("totp",clean(otp));
+       validate(auth);for(String k:Arrays.asList("totp","algorithm","digits","period"))if(auth.has(k))e.put(k,auth.get(k));
+      }catch(Exception unsupported){
+       e.put("unsupportedOtp",login.optString("totp"));
+       e.put("importWarning","Authenticator value preserved, but this format cannot generate codes yet. Password and notes imported normally.");
+      }
+     }
+     JSONArray uris=login.optJSONArray("uris");if(uris!=null&&uris.length()>0)e.put("url",uris.getJSONObject(0).optString("uri", ""));
+    }else if(item.optInt("type")!=2){
+     e.put("importWarning","This Bitwarden item type is preserved in the encrypted backup. Structured card/identity editing is not available yet.");
+    }
+    if(item.has("deletedDate")&&!item.isNull("deletedDate"))e.put("importWarning","Archived/deleted Bitwarden item preserved. Review before use.");
+    validate(e);out.put(e);
+   }return out;
   }
   throw new Exception("Unrecognized format. Choose Aegis JSON, Bitwarden vault JSON, otpauth text, or a NullVault backup.");
  }
  public static JSONArray merge(JSONArray current,JSONArray incoming)throws Exception{
-  JSONArray out=new JSONArray(current.toString());for(int i=0;i<incoming.length();i++){JSONObject e=incoming.getJSONObject(i);validate(e);boolean duplicate=false;for(int j=0;j<out.length();j++){JSONObject old=out.getJSONObject(j);if(old.optString("title").equals(e.optString("title"))&&old.optString("username").equals(e.optString("username"))&&old.optString("password").equals(e.optString("password"))&&clean(old.optString("totp")).equals(clean(e.optString("totp")))&&old.optInt("period",30)==e.optInt("period",30)&&old.optInt("digits",6)==e.optInt("digits",6)&&old.optString("algorithm","SHA1").equals(e.optString("algorithm","SHA1"))&&old.optString("notes").equals(e.optString("notes"))&&old.optString("url").equals(e.optString("url"))){duplicate=true;break;}}if(!duplicate){JSONObject copy=new JSONObject(e.toString());copy.put("id",UUID.randomUUID().toString());out.put(copy);}}return out;
+  JSONArray out=new JSONArray(current.toString());for(int i=0;i<incoming.length();i++){JSONObject e=incoming.getJSONObject(i);validate(e);boolean duplicate=false;for(int j=0;j<out.length();j++){JSONObject old=out.getJSONObject(j);if(old.optString("title").equals(e.optString("title"))&&old.optString("username").equals(e.optString("username"))&&old.optString("password").equals(e.optString("password"))&&clean(old.optString("totp")).equals(clean(e.optString("totp")))&&old.optInt("period",30)==e.optInt("period",30)&&old.optInt("digits",6)==e.optInt("digits",6)&&old.optString("algorithm","SHA1").equals(e.optString("algorithm","SHA1"))&&old.optString("notes").equals(e.optString("notes"))&&old.optString("url").equals(e.optString("url"))&&old.optString("unsupportedOtp").equals(e.optString("unsupportedOtp"))&&Objects.equals(Objects.toString(old.opt("sourceBitwarden"),""),Objects.toString(e.opt("sourceBitwarden"),""))){duplicate=true;break;}}if(!duplicate){JSONObject copy=new JSONObject(e.toString());copy.put("id",UUID.randomUUID().toString());out.put(copy);}}return out;
  }
 }
