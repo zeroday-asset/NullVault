@@ -3,7 +3,7 @@ android {
  namespace 'app.nullvault'
  compileSdk 35
  signingConfigs { debug { storeFile rootProject.file('.signing/preview.keystore'); storePassword 'android'; keyAlias 'androiddebugkey'; keyPassword 'android' } }
- defaultConfig { applicationId 'app.nullvault.preview3'; minSdk 26; targetSdk 35; versionCode 3; versionName '0.2.1-preview' }
+ defaultConfig { applicationId 'app.nullvault.preview3'; minSdk 26; targetSdk 35; versionCode 4; versionName '0.3.0-preview' }
  compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
 
