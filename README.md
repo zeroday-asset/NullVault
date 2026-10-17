@@ -2,8 +2,12 @@
 
 Offline Android vault and authenticator. **Experimental preview: test data only. No security audit has been completed.**
 
-## Preview 0.2.1
+## Preview 0.3.0
 
+- Folder assignment and filtering; Bitwarden folder names and all login URLs retained on import.
+- Installed app links (`androidapp://package.name`) launch the app directly; copy-password switches to the selected target.
+- Website favicons are fetched directly from HTTPS site origins, with an off switch. Installed-app icons are local. Unsupported/missing icons show a placeholder.
+- Per-entry GitHub repository URL and launch button.
 - Searchable vault list with separate entry details, add/edit forms, and settings, using a Bitwarden-inspired arrangement and original NullVault branding.
 - Passwords and authenticator codes hidden by default. Reveal and copy within an entry. Clipboard clearing after 30 seconds (when the app process is alive).
 - Master-password derivation and vault writes run off the UI thread. Configurable background timeout (5 minutes by default), immediate screen-off/manual locking. Brief file-picker and app switches retain the session.
